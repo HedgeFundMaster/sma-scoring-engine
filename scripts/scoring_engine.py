@@ -1,7 +1,6 @@
 import pandas as pd # type: ignore
 import numpy as np # type: ignore
 from pathlib import Path
-from ace_tools import display_dataframe_to_user # type: ignore
 import logging
 from typing import Dict, Any
 
@@ -219,12 +218,9 @@ def main():
     score_stats = df_tiered["Quantitative Score"].describe()
     logger.info(f"Score statistics: Mean={score_stats['mean']:.2f}, Std={score_stats['std']:.2f}, Min={score_stats['min']:.2f}, Max={score_stats['max']:.2f}")
     
-    display_dataframe_to_user(
-        "Sample Scored SMA Strategies",
-        df_tiered[["Symbol", "Name", "Quantitative Score", "Tier"]].head()
-    )
-    
-    logger.info("SMA scoring completed successfully")
+    print("\n✅ Sample Scored SMA Strategies:\n")
+    print(df_scored.head().to_string(index=False))
+    logger.info("SMA scoring completed successfully.")
 
 if __name__ == "__main__":
     main()
