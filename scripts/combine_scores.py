@@ -32,8 +32,8 @@ def main():
         df_qual = pd.read_csv(QUAL_SCORES_PATH)
         df_quant = pd.read_csv(QUANT_SCORES_PATH)
         
-        df_qual.rename(columns={"Name": "Fund Name"}, inplace=True)
-        df_quant.rename(columns={"Name": "Fund Name"}, inplace=True)
+        # The "Fund Name" column is now standardized in the upstream scripts.
+        # No renaming is necessary.
         
         df_merged = pd.merge(
             df_qual[["Fund Name", "Qualitative Score"]],

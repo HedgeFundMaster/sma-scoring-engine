@@ -74,6 +74,9 @@ def main():
         total_weight = validate_weights(config)
         
         df = pd.read_csv(DATA_PATH)
+        # Standardize the name column immediately after loading
+        if "Name" in df.columns:
+            df.rename(columns={"Name": "Fund Name"}, inplace=True)
         
         df_scored = calculate_scores(df, config)
         df_composite = calculate_composite_score(df_scored, config, total_weight)
