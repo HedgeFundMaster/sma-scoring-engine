@@ -95,7 +95,7 @@ def score_attribute(series: pd.Series, mapping: Dict[str, int]) -> pd.Series:
 
 def calculate_final_score(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Calculates the final qualitative score based on attribute scores and weights.
+    Calculates raw, averaged, and weighted qualitative scores.
     
     Args:
         df (pd.DataFrame): The cleaned dataframe.
@@ -108,36 +108,54 @@ def calculate_final_score(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFr
     weights = config["weights"]
     
     scored_df = df[["Fund Name"]].copy()
-    
-    # Score Manager Tenure (numerical, not mapped)
-    tenure_scores = df["Manager Tenure (Years)"].apply(parse_tenure)
-    # Normalize tenure score (0-1 scale, capped at 20 years for max score)
-    scored_df["Manager Tenure Score"] = (tenure_scores / 20).clip(0, 1)
+    raw_score_columns = []
 
-    # Score other attributes using mappings
+    # --- Raw Score Calculation ---
+    # Score categorical attributes using mappings
     for attribute, mapping in mappings.items():
-        scored_df[f"{attribute} Score"] = score_attribute(df[attribute], mapping)
+        raw_col_name = f"{attribute} Raw Score"
+        scored_df[raw_col_name] = score_attribute(df[attribute], mapping)
+        raw_score_columns.append(raw_col_name)
+
+    # Calculate Total and Average Raw Scores
+    scored_df["Total Score"] = scored_df[raw_score_columns].sum(axis=1)
+    scored_df["Average Score"] = scored_df[raw_score_columns].mean(axis=1)
+
+    # --- Weighted Score Calculation (Advanced) ---
+    normalized_scores = scored_df.copy()
+    
+    # Normalize Manager Tenure score (0-1 scale, capped at 20 years for max score)
+    tenure_scores = df["Manager Tenure (Years)"].apply(parse_tenure)
+    normalized_scores["Manager Tenure Score"] = (tenure_scores / 20).clip(0, 1)
 
     # Normalize mapped scores to a 0-1 scale
-    for col in scored_df.columns:
-        if col != "Fund Name" and "Tenure" not in col:
-            max_possible_score = max(mappings[col.replace(" Score", "")].values())
-            if max_possible_score > 0:
-                scored_df[col] = scored_df[col] / max_possible_score
+    for attribute, mapping in mappings.items():
+        raw_col_name = f"{attribute} Raw Score"
+        norm_col_name = f"{attribute} Score"
+        max_possible_score = max(mapping.values())
+        if max_possible_score > 0:
+            normalized_scores[norm_col_name] = scored_df[raw_col_name] / max_possible_score
+        else:
+            normalized_scores[norm_col_name] = 0
 
     # Calculate weighted composite score
     total_weight = sum(weights.values())
-    scored_df["Qualitative Score"] = 0
+    weighted_score = 0
     for col, weight in weights.items():
-        if col in scored_df.columns:
-            scored_df["Qualitative Score"] += scored_df[col] * weight
+        if col in normalized_scores.columns:
+            weighted_score += normalized_scores[col] * weight
             
     # Normalize by total weight and scale to 100
     if total_weight > 0:
-        scored_df["Qualitative Score"] = (scored_df["Qualitative Score"] / total_weight) * 100
+        scored_df["Qualitative Score"] = (weighted_score / total_weight) * 100
+    else:
+        scored_df["Qualitative Score"] = 0
 
     logger.info("Calculated final qualitative scores.")
-    return scored_df
+    
+    # Return a clean dataframe with all funds and their key scores
+    final_columns = ["Fund Name", "Total Score", "Average Score", "Qualitative Score"]
+    return scored_df[final_columns]
 
 def main():
     """
