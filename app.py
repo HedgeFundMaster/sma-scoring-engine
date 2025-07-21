@@ -20,12 +20,37 @@ from scripts.qualitative_scoring_engine import (
 from scripts.combine_scores import (
     get_combination_config,
     calculate_combined_score,
-    assign_quadrant
+    assign_quadrant,
+    main as combine_scores_main,
 )
+from scripts.qualitative_scoring_engine import main as qual_main
+from scripts.scoring_engine import main as quant_main
+
+
+def setup_initial_data():
+    """
+    Checks if the combined scores file exists, and if not, runs the full scoring pipeline.
+    """
+    combined_scores_path = Path("outputs/combined_scores.csv")
+    if not combined_scores_path.exists():
+        st.warning("Combined scores file not found. Running the full scoring pipeline now. This may take a moment...")
+        with st.spinner("Executing quantitative scoring..."):
+            quant_main()
+        with st.spinner("Executing qualitative scoring..."):
+            qual_main()
+        with st.spinner("Combining scores..."):
+            combine_scores_main()
+        st.success("Scoring pipeline completed successfully!")
+        # Clear the cache after regenerating data
+        st.cache_data.clear()
+    return combined_scores_path
 
 st.set_page_config(layout="wide")
 
 st.title("SMA Scoring Engine Dashboard")
+
+# --- Initial Setup ---
+combined_scores_path = setup_initial_data()
 
 @st.cache_data
 def load_data(file_path):
@@ -61,7 +86,7 @@ def run_scoring_for_new_fund(qual_df, quant_df):
     return final_df
 
 # --- Main Application ---
-df_combined = load_data("outputs/combined_scores.csv")
+df_combined = load_data(combined_scores_path)
 
 if df_combined is not None:
     st.sidebar.header("Filters")
