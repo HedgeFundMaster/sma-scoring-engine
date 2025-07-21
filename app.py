@@ -90,16 +90,10 @@ def run_scoring_for_new_fund(qual_df, quant_df):
 def dataframe_with_podium_styles(df):
     """Applies custom styles to the dataframe for tier-based highlighting."""
     def get_row_style(row):
-        style = ''
-        if row["Tier"] == "Tier 1":
-            style = 'background-color: #F4F6F6;'  # Light Cool Gray
-        elif row["Tier"] == "Tier 2":
-            style = 'background-color: #FAFAFA;'  # Off-white
-        elif row["Tier"] == "Tier 3":
-            style = 'background-color: #FDEDEC;'  # Light Pink/Red
+        style = ''  # No background color by default
         
         if 'is_new' in row and row['is_new']:
-            style += 'border: 2px solid #1E88E5;'
+            style = 'border: 2px solid #1E88E5;'  # Apply only border for new funds
             
         return [style] * len(row)
     
