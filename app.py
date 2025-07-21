@@ -69,11 +69,11 @@ def dataframe_with_podium_styles(df):
     """Applies custom styles to the dataframe for tier-based highlighting."""
     def get_row_style(row):
         if row["Tier"] == "Tier 1":
-            return ['background-color: #D4EDDA'] * len(row)
+            return ['background-color: #E8F5E9'] * len(row)  # Muted Green
         elif row["Tier"] == "Tier 2":
-            return ['background-color: #FFF3CD'] * len(row)
+            return ['background-color: #FFFDE7'] * len(row)  # Muted Yellow
         elif row["Tier"] == "Tier 3":
-            return ['background-color: #F8D7DA'] * len(row)
+            return ['background-color: #FFEBEE'] * len(row)  # Muted Red
         return [''] * len(row)
     
     return df.style.apply(get_row_style, axis=1)
