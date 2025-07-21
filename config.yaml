@@ -1,13 +1,13 @@
 # Quantitative Scoring Configuration
 quantitative_scoring:
   metrics:
-    Alpha (Since Inception): { weight: 15, higher_is_better: true }
-    'Historical Sharpe Ratio (3Y)': { weight: 10, higher_is_better: true }
+    Alpha (Since Inception): { weight: 20, higher_is_better: true } # Increased from 15
+    'Historical Sharpe Ratio (3Y)': { weight: 15, higher_is_better: true } # Increased from 10
     'Historical Sharpe Ratio (5Y)': { weight: 10, higher_is_better: true }
     'Information Ratio (vs Category) (3Y)': { weight: 10, higher_is_better: true }
     'Information Ratio (vs Category) (5Y)': { weight: 10, higher_is_better: true }
     'Max Drawdown (3Y)': { weight: 10, higher_is_better: false }
-    'Max Drawdown (5Y)': { weight: 10, higher_is_better: false }
+    'Max Drawdown (5Y)': { weight: 5, higher_is_better: false } # Decreased from 10
     'Daily Value at Risk (VaR) 5% (3Y Lookback)': { weight: 5, higher_is_better: false }
     'Batting Average (3Y Lookback)': { weight: 5, higher_is_better: true }
     'Upside/Downside Ratio (3Y)': { weight: 5, higher_is_better: true }
