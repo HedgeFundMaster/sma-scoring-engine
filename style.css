@@ -38,7 +38,7 @@ h2 {
     background-color: #ECEFF4 !important;
 }
 
-/* Tier-based coloring - applied via Python */
-.tier-1 { background-color: #A3BE8C !important; color: white; }
-.tier-2 { background-color: #EBCB8B !important; color: #3B4252; }
-.tier-3 { background-color: #BF616A !important; color: white; }
+/* Force black text color in all dataframe cells for readability */
+.stDataFrame table td {
+    color: black !important;
+}
