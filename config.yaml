@@ -21,6 +21,23 @@ qualitative_scoring:
     'Transparency & Reporting': 15
     'Investment Philosophy Clarity': 20
     'Consistency of Process': 40
+  score_mapping:
+    'High': 3
+    'Medium-High': 2.5
+    'Medium': 2
+    'Clear': 2 # For 'Investment Philosophy Clarity'
+    'Strong': 3 # For 'Consistency of Process'
+    'Moderate': 1.5
+    'Developing': 1
+    'Low': 0
+    # Add other specific text values found in the data
+    'ESG-aware growth investing': 2.5
+    'Quality growth across cycles': 3
+    'Value-oriented, fundamentals-based': 3
+    'Quantitative growth w/ fundamental overlay': 2.5
+    'Dividend growth across market caps': 2.5
+    'Concentrated value portfolio': 2
+    '3S Framework – Structural, Sustainable, Stewardship': 3
 
 # Score Combination Configuration
 combination_config:
