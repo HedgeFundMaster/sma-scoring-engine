@@ -1,44 +1,84 @@
-/* General App Styling */
+/* --- General Body & Fonts --- */
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Roboto', 'Segoe UI', sans-serif;
+    color: #EAECEE;
+    background-color: #1C2833;
 }
 
-/* Header Styling */
+/* --- Header & Footer --- */
 .header {
-    padding: 1rem 0;
-    border-bottom: 1px solid #e6e6e6;
-    margin-bottom: 2rem;
+    background-color: #283747;
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid #34495E;
+    margin-bottom: 1.5rem;
+    text-align: center;
 }
 
 .header h1 {
-    font-weight: 700;
-    color: #2E3440;
-}
-
-.header p {
-    color: #4C566A;
-    font-size: 1.1rem;
-}
-
-/* Section Headers */
-h2 {
+    font-size: 1.8rem;
     font-weight: 600;
-    color: #3B4252;
-    border-bottom: 2px solid #D8DEE9;
-    padding-bottom: 0.5rem;
+    color: #EAECEE;
+    margin: 0;
+    letter-spacing: 1px;
+}
+
+.footer {
+    text-align: center;
+    padding: 1.5rem;
     margin-top: 2rem;
+    font-size: 0.8rem;
+    color: #808B96;
+    border-top: 1px solid #34495E;
 }
 
-/* Table Row Highlighting */
-.stDataFrame tr[data-testid*="row-"] {
-    transition: background-color 0.2s ease-in-out;
+/* --- Streamlit Specific Components --- */
+
+/* Main content area */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
 }
 
-.stDataFrame tr[data-testid*="row-"]:hover {
-    background-color: #ECEFF4 !important;
+/* Sidebar styling */
+.st-emotion-cache-16txtl3 {
+    background-color: #212F3D;
+    border-right: 1px solid #34495E;
 }
 
-/* Force black text color in all dataframe cells for readability */
-.stDataFrame table td {
-    color: black !important;
+/* Dataframe styling */
+.stDataFrame {
+    border: 1px solid #34495E;
+    border-radius: 8px;
+    background-color: #212F3D;
+}
+
+/* Table header */
+.st-emotion-cache-1y3r99x {
+    background-color: #283747 !important;
+    color: #EAECEE !important;
+    font-weight: 600;
+}
+
+/* Table cell styling */
+.st-emotion-cache-1my9x4g {
+    border-bottom: 1px solid #34495E;
+    color: #EAECEE;
+}
+
+/* Table row hover effect */
+.st-emotion-cache-1my9x4g:hover {
+    background-color: #2C3E50;
+}
+
+/* --- Custom UI Elements --- */
+h2 {
+    color: #A9CCE3;
+    border-bottom: 1px solid #34495E;
+    padding-bottom: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+/* Input widgets */
+.stTextInput, .stSelectbox, .stMultiSelect, .stSlider {
+    border-radius: 5px;
 }

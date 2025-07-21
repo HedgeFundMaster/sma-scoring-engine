@@ -1,21 +1,21 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
-import sys
 import base64
+import sys
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="SMA Scoring Engine",
+    page_title="Fund Ranking Dashboard",
     page_icon="📊",
     layout="wide"
 )
 
 # --- Add scripts directory to path ---
 sys.path.append(str(Path(__file__).resolve().parent / "scripts"))
-from scripts.scoring_engine import main as quant_main, get_scoring_config, validate_weights, calculate_scores as calculate_quant_scores, calculate_composite_score as calculate_quant_composite_score, apply_tier_logic
-from scripts.qualitative_scoring_engine import main as qual_main, get_qualitative_config, calculate_final_score as calculate_qual_final_score
-from scripts.combine_scores import main as combine_scores_main, get_combination_config, calculate_combined_score
+from scripts.scoring_engine import get_scoring_config, validate_weights, calculate_scores as calculate_quant_scores, calculate_composite_score as calculate_quant_composite_score, apply_tier_logic
+from scripts.qualitative_scoring_engine import get_qualitative_config, calculate_final_score as calculate_qual_final_score
+from scripts.combine_scores import get_combination_config, calculate_combined_score
 
 # --- Helper Functions ---
 
@@ -28,123 +28,81 @@ def load_local_css(file_name):
         st.warning(f"CSS file not found: {file_name}")
 
 def get_table_download_link(df, filename, text):
-    """Generates a link allowing the data in a given panda dataframe to be downloaded."""
+    """Generates a link to download a DataFrame as a CSV."""
     csv = df.to_csv(index=False)
     b64 = base64.b64encode(csv.encode()).decode()
-    return f'<a href="data:file/csv;base64,{b64}" download="{filename}">{text}</a>'
+    return f'<a href="data:file/csv;base64,{b64}" download="{filename}" style="color: #A9CCE3; text-decoration: none;">{text}</a>'
 
 @st.cache_data
-def load_data(file_path):
-    """Loads the combined scores, caching the result."""
-    return pd.read_csv(file_path) if file_path.exists() else None
+def load_all_data():
+    """Loads and merges all required data from outputs and data directories."""
+    outputs_path = Path("outputs")
+    data_path = Path("data")
 
-def get_tier_explanation(score: float, thresholds: dict) -> tuple[str, str]:
-    """Assigns a tier and provides a justification based on a fund's score."""
-    tier1_cutoff = thresholds["tier1_cutoff"]
-    tier2_cutoff = thresholds["tier2_cutoff"]
+    combined_scores = pd.read_csv(outputs_path / "combined_scores.csv")
+    qual_scores = pd.read_csv(outputs_path / "qualitative_scores.csv")
+    quant_scores = pd.read_csv(outputs_path / "quantitative_scores.csv")
+    qual_raw = pd.read_csv(data_path / "Qualitative Scoring.csv")
+    quant_raw = pd.read_csv(data_path / "sma_data_structured.csv")
 
-    if score >= tier1_cutoff:
-        tier = "Tier 1"
-        justification = "Ranks in the top tier of its peers, demonstrating exceptional overall performance."
-    elif score >= tier2_cutoff:
-        tier = "Tier 2"
-        justification = "Ranks in the upper-middle tier, showing strong results and solid potential."
-    else:
-        tier = "Tier 3"
-        justification = "Ranks in the bottom tier, indicating significant room for improvement."
-    return tier, justification
+    df = pd.merge(combined_scores, qual_scores[['Fund Name', 'Qualitative Score']], on="Fund Name", how="left")
+    df = pd.merge(df, quant_scores[['Fund Name', 'Quantitative Score']], on="Fund Name", how="left")
+    df = pd.merge(df, qual_raw[['Fund Name', 'Manager Tenure (Years)']], on="Fund Name", how="left")
+    df = pd.merge(df, quant_raw[['Name', 'Historical Sharpe Ratio (3Y)']], left_on='Fund Name', right_on='Name', how="left")
+    df.drop(columns=['Name'], inplace=True)
 
-def apply_tier_and_justification(df, tier1_pct, tier2_pct):
-    """Calculates tiers and justifications based on dynamic percentile cutoffs."""
-    thresholds = {
-        "tier1_cutoff": df["Combined Score"].quantile(tier1_pct / 100),
-        "tier2_cutoff": df["Combined Score"].quantile(tier2_pct / 100),
-    }
-    tier_data = df["Combined Score"].apply(lambda score: get_tier_explanation(score, thresholds))
-    df["Tier"] = [item[0] for item in tier_data]
-    df["Justification"] = [item[1] for item in tier_data]
+    tier1_cutoff = df["Combined Score"].quantile(0.75)
+    tier2_cutoff = df["Combined Score"].quantile(0.50)
+    
+    def assign_tier(score):
+        if score >= tier1_cutoff: return "Tier 1"
+        elif score >= tier2_cutoff: return "Tier 2"
+        else: return "Tier 3"
+            
+    df['Tier'] = df['Combined Score'].apply(assign_tier)
+    df['Manager Tenure (Years)'] = df['Manager Tenure (Years)'].str.extract('(\d+)').astype(float).fillna(0)
     return df
 
 def run_scoring_for_new_fund(qual_df, quant_df):
     """Re-scores a single new fund provided as dataframes."""
-    # Quantitative Scoring
     quant_config = get_scoring_config()
     total_weight = validate_weights(quant_config)
     df_quant_scored = calculate_quant_scores(quant_df, quant_config)
     df_quant_composite = calculate_quant_composite_score(df_quant_scored, quant_config, total_weight)
-    df_tiered = apply_tier_logic(df_quant_composite)
     
-    # Qualitative Scoring
     qual_config = get_qualitative_config()
     df_qual_scored = calculate_qual_final_score(qual_df, qual_config)
     
-    # Combine Scores
-    df_quant_scored.rename(columns={"Name": "Fund Name"}, inplace=True)
-    merged_df = pd.merge(df_tiered[["Fund Name", "Quantitative Score"]], df_qual_scored[["Fund Name", "Qualitative Score"]], on="Fund Name", how="inner")
+    merged_df = pd.merge(df_quant_composite[["Fund Name", "Quantitative Score"]], df_qual_scored[["Fund Name", "Qualitative Score"]], on="Fund Name", how="inner")
     
     combination_config = get_combination_config()
     combined_df = calculate_combined_score(merged_df, combination_config)
-    
     return combined_df
 
-def dataframe_with_podium_styles(df):
-    """Applies custom styles to the dataframe for tier-based highlighting."""
-    def get_row_style(row):
-        style = ''  # No background color by default
-        
-        if 'is_new' in row and row['is_new']:
-            style = 'border: 2px solid #1E88E5;'  # Apply only border for new funds
-            
-        return [style] * len(row)
-    
-    return df.style.apply(get_row_style, axis=1)
-
-# --- UI Rendering Functions ---
+# --- UI Rendering ---
 
 def render_header():
-    """Renders the main application header."""
-    st.markdown(
-        """
-        <div class="header">
-            <h1>📊 SMA Scoring Engine Dashboard</h1>
-            <p>An interactive tool to analyze, filter, and understand fund performance based on our proprietary scoring model.</p>
+    st.markdown('<div class="header"><h1>FUND RANKING DASHBOARD</h1></div>', unsafe_allow_html=True)
+
+def render_footer():
+    st.markdown("""
+        <div class="footer">
+            <p>&copy; 2025 Your Company Name. All Rights Reserved.</p>
+            <p>Disclaimer: This tool is for informational purposes only and does not constitute investment advice.</p>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
 def main():
-    """Main function to run the Streamlit application."""
     load_local_css("style.css")
     render_header()
 
-    # Initialize session state for the new fund
     if 'new_fund_df' not in st.session_state:
         st.session_state.new_fund_df = None
 
-    # Check for data and generate if missing
-    combined_scores_path = Path("outputs/combined_scores.csv")
-    if not combined_scores_path.exists():
-        st.warning("Data not found. Running scoring pipeline...")
-        with st.spinner("Executing scoring scripts..."):
-            quant_main()
-            qual_main()
-            combine_scores_main()
-        st.success("Data generated successfully!")
-        st.cache_data.clear()
-
-    df_combined = load_data(combined_scores_path)
-
-    if df_combined is None:
-        st.error("Failed to load or generate scoring data. Please check the scripts.")
-        return
-
-    # --- Sidebar Controls ---
-    st.sidebar.header("⚙️ Controls & Filters")
-
-    with st.sidebar.expander("Tier Percentile Cutoffs", expanded=True):
-        tier1_pct = st.sidebar.slider("Tier 1 Cutoff (%ile)", 50, 100, 75, 1)
-        tier2_pct = st.sidebar.slider("Tier 2 Cutoff (%ile)", 0, tier1_pct - 1, 50, 1)
+    df = load_all_data()
+    
+    # --- Sidebar ---
+    st.sidebar.header("Controls & Filters")
 
     with st.sidebar.expander("Compare a New Fund"):
         uploaded_qual_file = st.file_uploader("Upload New Qualitative Data (CSV)", type="csv")
@@ -161,60 +119,61 @@ def main():
                         newly_scored_df['is_new'] = True
                         st.session_state.new_fund_df = newly_scored_df
                         st.success("New fund scored successfully!")
-
                 except Exception as e:
                     st.error(f"Error scoring new fund: {e}")
             else:
                 st.warning("Please upload both qualitative and quantitative files.")
 
-    # Append new fund if it exists in session state
-    if st.session_state.new_fund_df is not None:
-        df_combined = pd.concat([df_combined, st.session_state.new_fund_df], ignore_index=True)
-
-    # Calculate tiers for the potentially expanded dataframe
-    df_with_tiers = apply_tier_and_justification(df_combined.copy(), tier1_pct, tier2_pct)
-
-    st.sidebar.header("Filters")
-    search_term = st.sidebar.text_input("Search by Fund Name")
-    
-    unique_tiers = sorted(df_with_tiers["Tier"].unique())
+    unique_tiers = sorted(df["Tier"].unique())
     selected_tiers = st.sidebar.multiselect("Filter by Tier", unique_tiers, default=unique_tiers)
 
-    # --- Main Content Rendering ---
+    min_sharpe, max_sharpe = float(df['Historical Sharpe Ratio (3Y)'].min()), float(df['Historical Sharpe Ratio (3Y)'].max())
+    selected_sharpe = st.sidebar.slider("Filter by 3Y Sharpe Ratio", min_sharpe, max_sharpe, (min_sharpe, max_sharpe))
+
+    tenure_filter = st.sidebar.checkbox("Filter by Manager Tenure > 10 years")
+
+    # --- Main Logic ---
+    if st.session_state.new_fund_df is not None:
+        df = pd.concat([df, st.session_state.new_fund_df], ignore_index=True)
+
+    filtered_df = df[df["Tier"].isin(selected_tiers)]
+    filtered_df = filtered_df[
+        (filtered_df['Historical Sharpe Ratio (3Y)'].fillna(min_sharpe) >= selected_sharpe[0]) &
+        (filtered_df['Historical Sharpe Ratio (3Y)'].fillna(max_sharpe) <= selected_sharpe[1])
+    ]
+    if tenure_filter:
+        filtered_df = filtered_df[filtered_df['Manager Tenure (Years)'] > 10]
+
     st.header("Fund Performance Overview")
 
-    filtered_df = df_with_tiers[df_with_tiers["Tier"].isin(selected_tiers)]
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        search_term = st.text_input("Search by Fund Name", placeholder="Type to filter funds...")
+    with col2:
+        sort_by = st.selectbox("Sort by", ["Combined Score", "Qualitative Score", "Quantitative Score"], index=0)
+
     if search_term:
         filtered_df = filtered_df[filtered_df["Fund Name"].str.contains(search_term, case=False, na=False)]
 
-    # Prepare dataframe for display
-    display_cols = ['Fund Name', 'Combined Score', 'Tier', 'Justification']
-    if 'is_new' in filtered_df.columns:
-        display_cols.append('is_new')
+    filtered_df = filtered_df.sort_values(by=sort_by, ascending=False)
 
     st.dataframe(
-        dataframe_with_podium_styles(filtered_df[display_cols]), 
+        filtered_df,
         use_container_width=True,
         hide_index=True,
-        column_config={"is_new": None}
+        column_config={
+            "Combined Score": st.column_config.NumberColumn(format="%.2f", help="The final weighted score."),
+            "Qualitative Score": st.column_config.NumberColumn(format="%.2f", help="Score based on factors like team and process."),
+            "Quantitative Score": st.column_config.NumberColumn(format="%.2f", help="Score based on performance metrics."),
+            "is_new": None,
+            "Manager Tenure (Years)": None,
+            "Historical Sharpe Ratio (3Y)": None
+        }
     )
 
-    st.markdown(get_table_download_link(filtered_df.drop(columns=['is_new'], errors='ignore'), "sma_scores.csv", "📥 Download as CSV"), unsafe_allow_html=True)
+    st.markdown(get_table_download_link(filtered_df, "filtered_fund_scores.csv", "📥 Export Current View to CSV"), unsafe_allow_html=True)
 
-    st.header("Top 5 Funds Analysis")
-    top_5_df = filtered_df.nlargest(5, "Combined Score")
-
-    if not top_5_df.empty:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Top 5 by Combined Score")
-            st.bar_chart(top_5_df.set_index("Fund Name")["Combined Score"])
-        with col2:
-            st.subheader("Scores Breakdown")
-            st.bar_chart(top_5_df.set_index("Fund Name")[["Quantitative Score", "Qualitative Score"]])
-    else:
-        st.warning("No data available for the selected filters to display charts.")
-
+    render_footer()
 
 if __name__ == "__main__":
     main()
