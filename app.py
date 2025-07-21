@@ -92,55 +92,6 @@ def render_header():
         unsafe_allow_html=True
     )
 
-def render_sidebar(df):
-    """Renders the sidebar with filters and controls."""
-    with st.sidebar:
-        st.header("⚙️ Controls & Filters")
-
-        with st.expander("Tier Percentile Cutoffs", expanded=True):
-            tier1_pct = st.slider("Tier 1 Cutoff (%ile)", 50, 100, 75, 1)
-            tier2_pct = st.slider("Tier 2 Cutoff (%ile)", 0, tier1_pct - 1, 50, 1)
-        
-        st.header("Filters")
-        search_term = st.text_input("Search by Fund Name")
-        
-        unique_tiers = sorted(df["Tier"].unique())
-        selected_tiers = st.multiselect("Filter by Tier", unique_tiers, default=unique_tiers)
-        
-        return tier1_pct, tier2_pct, search_term, selected_tiers
-
-def render_main_content(df, search_term, selected_tiers):
-    """Renders the main content area with data tables and charts."""
-    st.header("Fund Performance Overview")
-
-    # Apply filters
-    filtered_df = df[df["Tier"].isin(selected_tiers)]
-    if search_term:
-        filtered_df = filtered_df[filtered_df["Fund Name"].str.contains(search_term, case=False, na=False)]
-
-    # Display styled dataframe
-    st.dataframe(dataframe_with_podium_styles(filtered_df[['Fund Name', 'Combined Score', 'Tier', 'Justification']]), use_container_width=True)
-
-    # Download links
-    st.markdown(get_table_download_link(filtered_df, "sma_scores.csv", "📥 Download as CSV"), unsafe_allow_html=True)
-
-    # Visualizations
-    st.header("Top 5 Funds Analysis")
-    top_5_df = filtered_df.nlargest(5, "Combined Score")
-
-    if not top_5_df.empty:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Top 5 by Combined Score")
-            st.bar_chart(top_5_df.set_index("Fund Name")["Combined Score"])
-        with col2:
-            st.subheader("Scores Breakdown")
-            st.bar_chart(top_5_df.set_index("Fund Name")[["Quantitative Score", "Qualitative Score"]])
-    else:
-        st.warning("No data available for the selected filters to display charts.")
-
-# --- Main Application Logic ---
-
 def main():
     """Main function to run the Streamlit application."""
     load_local_css("style.css")
@@ -159,15 +110,31 @@ def main():
 
     df_combined = load_data(combined_scores_path)
 
-    if df_combined is not None:
-        tier1_pct, tier2_pct, search_term, selected_tiers = render_sidebar(df_combined)
-        
-        # Apply dynamic tiering
-        df_with_tiers = apply_tier_and_justification(df_combined, tier1_pct, tier2_pct)
-        
-        render_main_content(df_with_tiers, search_term, selected_tiers)
-    else:
+    if df_combined is None:
         st.error("Failed to load or generate scoring data. Please check the scripts.")
+        return
+
+    # --- Sidebar Controls ---
+    st.sidebar.header("⚙️ Controls & Filters")
+
+    # 1. Get dynamic controls first
+    with st.sidebar.expander("Tier Percentile Cutoffs", expanded=True):
+        tier1_pct = st.sidebar.slider("Tier 1 Cutoff (%ile)", 50, 100, 75, 1)
+        tier2_pct = st.sidebar.slider("Tier 2 Cutoff (%ile)", 0, tier1_pct - 1, 50, 1)
+
+    # 2. Calculate tiers based on the dynamic controls
+    df_with_tiers = apply_tier_and_justification(df_combined.copy(), tier1_pct, tier2_pct)
+
+    # 3. Create filters based on the *newly calculated* data
+    st.sidebar.header("Filters")
+    search_term = st.sidebar.text_input("Search by Fund Name")
+    
+    unique_tiers = sorted(df_with_tiers["Tier"].unique())
+    selected_tiers = st.sidebar.multiselect("Filter by Tier", unique_tiers, default=unique_tiers)
+
+    # --- Main Content Rendering ---
+    render_main_content(df_with_tiers, search_term, selected_tiers)
+
 
 if __name__ == "__main__":
     main()
