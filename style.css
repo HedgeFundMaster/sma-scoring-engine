@@ -1,0 +1,44 @@
+/* General App Styling */
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Header Styling */
+.header {
+    padding: 1rem 0;
+    border-bottom: 1px solid #e6e6e6;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-weight: 700;
+    color: #2E3440;
+}
+
+.header p {
+    color: #4C566A;
+    font-size: 1.1rem;
+}
+
+/* Section Headers */
+h2 {
+    font-weight: 600;
+    color: #3B4252;
+    border-bottom: 2px solid #D8DEE9;
+    padding-bottom: 0.5rem;
+    margin-top: 2rem;
+}
+
+/* Table Row Highlighting */
+.stDataFrame tr[data-testid*="row-"] {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.stDataFrame tr[data-testid*="row-"]:hover {
+    background-color: #ECEFF4 !important;
+}
+
+/* Tier-based coloring - applied via Python */
+.tier-1 { background-color: #A3BE8C !important; color: white; }
+.tier-2 { background-color: #EBCB8B !important; color: #3B4252; }
+.tier-3 { background-color: #BF616A !important; color: white; }
