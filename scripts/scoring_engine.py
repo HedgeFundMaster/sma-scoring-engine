@@ -40,7 +40,10 @@ def calculate_scores(df, config):
     """Calculates percentile scores for each metric."""
     for metric, params in config['metrics'].items():
         if metric in df.columns:
-            df[f"{metric}_Score"] = calculate_percentile_score(df[metric], params['higher_is_better'])
+            # Clean data: convert to numeric and fill missing values with the median
+            numeric_series = pd.to_numeric(df[metric], errors='coerce')
+            numeric_series.fillna(numeric_series.median(), inplace=True)
+            df[f"{metric}_Score"] = calculate_percentile_score(numeric_series, params['higher_is_better'])
     
     if 'penalties' in config:
         df = apply_penalties(df, config['penalties'])
