@@ -26,7 +26,7 @@ def calculate_final_score(df, config):
 
     # Calculate the weighted average score
     total_weight = sum(weights.values())
-    df["Qualitative Score"] = sum(df[f"{cat}_Score"] * weight for cat, weight in weights.items()) / total_weight
+    df["Qualitative Score"] = sum(df[f"{cat}_Score"] * weight for cat, weight in weights.items() if f"{cat}_Score" in df) / total_weight
     
     return df
 
