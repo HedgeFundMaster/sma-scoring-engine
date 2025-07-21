@@ -1,35 +1,53 @@
-# SMA Scoring Engine
+The SMA Fund Scoring Engine is a dual-layer evaluation system designed to rank and tier separately managed accounts (SMAs) based on both quantitative performance and qualitative investment characteristics. It enables investors, advisors, and PMs to compare funds across asset classes with transparency, consistency, and insight.
+📊 Scoring Methodology:
 
-## Configuration
+✅ Quantitative Metrics (from sma_scored.csv)
+Weights and penalties applied to:
 
-### API Keys and Environment Variables
+Alpha (Since Inception)
 
-To protect sensitive information like API keys, this project uses a `.env` file to manage environment variables. This file is included in the `.gitignore` file to prevent it from being accidentally committed to your repository.
+Historical Sharpe Ratio (3Y, 5Y)
 
-**To set up your environment variables:**
+Information Ratio (3Y, 5Y)
 
-1.  **Create a `.env` file** in the root of the project directory.
-2.  **Add your API key** to the `.env` file in the following format:
+Max Drawdown (3Y, 5Y)
 
-    ```
-    API_KEY="your_api_key_here"
-    ```
+Daily VaR 5% (3Y, 5Y)
 
-3.  **Access the API key** in your Python scripts using the `os` library:
+Batting Average (3Y, 5Y)
 
-    ```python
-    import os
-    from dotenv import load_dotenv
+Upside/Downside Ratio (3Y, 5Y)
 
-    load_dotenv()
+Higher = better for return-oriented metrics; lower = better for risk metrics.
 
-    api_key = os.getenv("API_KEY")
-    ```
+🧠 Qualitative Metrics (from qualitative_scored.csv)
+Scored subjectively across consistent dimensions such as:
 
-4.  **Install the `python-dotenv` library** to load the `.env` file:
+Team Depth
 
-    ```bash
-    pip install python-dotenv
-    ```
+Process Consistency
 
-By following this approach, you can ensure that your API keys and other secrets are not exposed in your codebase or your git history.
+Transparency
+
+Philosophy Clarity
+
+Edge Relative to Peers
+
+Risk Controls
+
+🔀 Combined Score
+Each fund is given a final score computed as:
+
+overall_score = (qual_score * QUAL_WEIGHT) + (quant_score * QUANT_WEIGHT)
+Tiered thresholds (customizable in config.yaml) rank funds into:
+
+Tier 1 (Elite)
+
+Tier 2 (Solid)
+
+Tier 3 (Needs Review)
+
+
+
+
+
