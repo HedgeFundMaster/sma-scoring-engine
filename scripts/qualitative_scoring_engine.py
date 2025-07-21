@@ -70,7 +70,7 @@ def load_and_clean_data(file_path: Path) -> pd.DataFrame:
         
     logger.info(f"Loading qualitative data from: {file_path}")
     # The CSV has an inconsistent format; the first 26 rows are structured correctly.
-    df = pd.read_csv(file_path, nrows=26)
+    df = pd.read_csv(file_path)
     df.columns = df.columns.str.strip()
     
     # Clean whitespace from all text-based columns
