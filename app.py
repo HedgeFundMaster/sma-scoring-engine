@@ -133,7 +133,33 @@ def main():
     selected_tiers = st.sidebar.multiselect("Filter by Tier", unique_tiers, default=unique_tiers)
 
     # --- Main Content Rendering ---
-    render_main_content(df_with_tiers, search_term, selected_tiers)
+    st.header("Fund Performance Overview")
+
+    # Apply filters
+    filtered_df = df_with_tiers[df_with_tiers["Tier"].isin(selected_tiers)]
+    if search_term:
+        filtered_df = filtered_df[filtered_df["Fund Name"].str.contains(search_term, case=False, na=False)]
+
+    # Display styled dataframe
+    st.dataframe(dataframe_with_podium_styles(filtered_df[['Fund Name', 'Combined Score', 'Tier', 'Justification']]), use_container_width=True)
+
+    # Download links
+    st.markdown(get_table_download_link(filtered_df, "sma_scores.csv", "📥 Download as CSV"), unsafe_allow_html=True)
+
+    # Visualizations
+    st.header("Top 5 Funds Analysis")
+    top_5_df = filtered_df.nlargest(5, "Combined Score")
+
+    if not top_5_df.empty:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Top 5 by Combined Score")
+            st.bar_chart(top_5_df.set_index("Fund Name")["Combined Score"])
+        with col2:
+            st.subheader("Scores Breakdown")
+            st.bar_chart(top_5_df.set_index("Fund Name")[["Quantitative Score", "Qualitative Score"]])
+    else:
+        st.warning("No data available for the selected filters to display charts.")
 
 
 if __name__ == "__main__":
