@@ -92,11 +92,11 @@ def dataframe_with_podium_styles(df):
     def get_row_style(row):
         style = ''
         if row["Tier"] == "Tier 1":
-            style = 'background-color: #E8F5E9;'
+            style = 'background-color: #F4F6F6;'  # Light Cool Gray
         elif row["Tier"] == "Tier 2":
-            style = 'background-color: #FFFDE7;'
+            style = 'background-color: #FAFAFA;'  # Off-white
         elif row["Tier"] == "Tier 3":
-            style = 'background-color: #FFEBEE;'
+            style = 'background-color: #FDEDEC;'  # Light Pink/Red
         
         if 'is_new' in row and row['is_new']:
             style += 'border: 2px solid #1E88E5;'
