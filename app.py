@@ -13,9 +13,9 @@ st.set_page_config(
 
 # --- Add scripts directory to path ---
 sys.path.append(str(Path(__file__).resolve().parent / "scripts"))
-from scripts.scoring_engine import get_scoring_config, validate_weights, calculate_scores as calculate_quant_scores, calculate_composite_score as calculate_quant_composite_score, apply_tier_logic
-from scripts.qualitative_scoring_engine import get_qualitative_config, calculate_final_score as calculate_qual_final_score
-from scripts.combine_scores import get_combination_config, calculate_combined_score
+from scripts.scoring_engine import main as quant_main, get_scoring_config, validate_weights, calculate_scores as calculate_quant_scores, calculate_composite_score as calculate_quant_composite_score, apply_tier_logic
+from scripts.qualitative_scoring_engine import main as qual_main, get_qualitative_config, calculate_final_score as calculate_qual_final_score
+from scripts.combine_scores import main as combine_scores_main, get_combination_config, calculate_combined_score
 
 # --- Helper Functions ---
 
@@ -95,6 +95,28 @@ def render_footer():
 def main():
     load_local_css("style.css")
     render_header()
+
+    # --- Data Generation Check ---
+    outputs_path = Path("outputs")
+    required_files = [
+        outputs_path / "combined_scores.csv",
+        outputs_path / "qualitative_scores.csv",
+        outputs_path / "quantitative_scores.csv"
+    ]
+
+    if not all(f.exists() for f in required_files):
+        st.warning("Data not found. Running scoring pipeline...")
+        with st.spinner("Executing scoring scripts... This may take a moment."):
+            # Ensure output directory exists
+            outputs_path.mkdir(exist_ok=True)
+            
+            # Run the scoring scripts
+            quant_main()
+            qual_main()
+            combine_scores_main()
+        st.success("Data generated successfully!")
+        # Clear the cache to ensure the new data is loaded
+        st.cache_data.clear()
 
     if 'new_fund_df' not in st.session_state:
         st.session_state.new_fund_df = None
