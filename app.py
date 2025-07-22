@@ -45,12 +45,20 @@ def load_all_data():
     qual_raw = pd.read_csv(data_path / "Qualitative Scoring.csv")
     quant_raw = pd.read_csv(data_path / "sma_data_structured.csv")
 
+    # Defensively rename the column from the quantitative scores file
+    if "Name" in quant_scores.columns:
+        quant_scores.rename(columns={"Name": "Fund Name"}, inplace=True)
+
     df = pd.merge(combined_scores, qual_scores[['Fund Name', 'Qualitative Score']], on="Fund Name", how="left")
     df = pd.merge(df, quant_scores[['Fund Name', 'Quantitative Score']], on="Fund Name", how="left")
     df = pd.merge(df, qual_raw[['Fund Name', 'Manager Tenure (Years)']], on="Fund Name", how="left")
-    df = pd.merge(df, quant_raw[['Name', 'Historical Sharpe Ratio (3Y)']], left_on='Fund Name', right_on='Name', how="left")
-    df.drop(columns=['Name'], inplace=True)
-
+    
+    # Defensively rename the column from the raw quantitative data file
+    if "Name" in quant_raw.columns:
+        quant_raw.rename(columns={"Name": "Fund Name"}, inplace=True)
+        
+    df = pd.merge(df, quant_raw[['Fund Name', 'Historical Sharpe Ratio (3Y)']], on='Fund Name', how="left")
+    
     tier1_cutoff = df["Combined Score"].quantile(0.75)
     tier2_cutoff = df["Combined Score"].quantile(0.50)
     

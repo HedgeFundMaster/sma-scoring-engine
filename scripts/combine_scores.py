@@ -32,8 +32,9 @@ def main():
         df_qual = pd.read_csv(QUAL_SCORES_PATH)
         df_quant = pd.read_csv(QUANT_SCORES_PATH)
         
-        # The "Fund Name" column is now standardized in the upstream scripts.
-        # No renaming is necessary.
+        # Defensively rename the column from the quantitative scores
+        if "Name" in df_quant.columns:
+            df_quant.rename(columns={"Name": "Fund Name"}, inplace=True)
         
         df_merged = pd.merge(
             df_qual[["Fund Name", "Qualitative Score"]],
@@ -44,7 +45,7 @@ def main():
         
         df_combined = calculate_combined_score(df_merged, config)
         
-        OUTPUT_PATH.parent.mkdir(exist_ok=True)
+        COMBINED_SCORES_PATH.parent.mkdir(exist_ok=True)
         df_combined.to_csv(COMBINED_SCORES_PATH, index=False)
         
         print(f"Combined scores saved to {COMBINED_SCORES_PATH}")
