@@ -3,7 +3,6 @@ import pandas as pd
 from pathlib import Path
 import base64
 import sys
-import subprocess
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -14,11 +13,7 @@ st.set_page_config(
 
 # --- Path Definitions ---
 BASE_DIR = Path(__file__).resolve().parent
-SCRIPTS_DIR = BASE_DIR / "scripts"
 OUTPUT_DIR = BASE_DIR / "outputs"
-
-# --- Add scripts directory to path ---
-sys.path.append(str(SCRIPTS_DIR))
 
 # --- Helper Functions ---
 def load_local_css(file_name):
@@ -53,9 +48,18 @@ def load_and_process_data():
         qual_df = pd.read_csv(qual_cleaned_path)
         quant_df = pd.read_csv(quant_cleaned_path)
 
-        # Merge supplementary data for filters
-        df = pd.merge(df, qual_df[['Fund Name', 'Manager Tenure (Years)']], on="Fund Name", how="left")
-        df = pd.merge(df, quant_df[['Fund Name', 'Historical Sharpe Ratio (3Y)']], on='Fund Name', how="left")
+        # --- Robustly Merge Supplementary Data ---
+        # Merge Manager Tenure if available
+        if 'Manager Tenure (Years)' in qual_df.columns and 'Fund Name' in qual_df.columns:
+            df = pd.merge(df, qual_df[['Fund Name', 'Manager Tenure (Years)']], on="Fund Name", how="left")
+        else:
+            st.warning("Column 'Manager Tenure (Years)' not found. Tenure filter will be disabled.")
+
+        # Merge Sharpe Ratio if available
+        if 'Historical Sharpe Ratio (3Y)' in quant_df.columns and 'Fund Name' in quant_df.columns:
+            df = pd.merge(df, quant_df[['Fund Name', 'Historical Sharpe Ratio (3Y)']], on='Fund Name', how="left")
+        else:
+            st.warning("Column 'Historical Sharpe Ratio (3Y)' not found. Sharpe Ratio filter will be disabled.")
 
         # Assign Tiers
         tier1_cutoff = df["Combined Score"].quantile(0.75)
@@ -72,41 +76,11 @@ def load_and_process_data():
         return df
 
     except FileNotFoundError as e:
-        st.error(f"A required data file was not found: {e.filename}. The data pipeline may have failed.")
+        st.error(f"A required data file was not found: {e.filename}. Please run the main scoring pipeline first.")
         return None
     except Exception as e:
         st.error(f"An error occurred while loading data: {e}")
         return None
-
-def run_scoring_pipeline():
-    """Executes the entire data processing and scoring pipeline."""
-    pipeline_scripts = [
-        "data_preprocessor.py",
-        "scoring_engine.py",
-        "qualitative_scoring_engine.py",
-        "combine_scores.py"
-    ]
-    
-    with st.spinner("Executing scoring pipeline... This may take a moment."):
-        for script_name in pipeline_scripts:
-            script_path = SCRIPTS_DIR / script_name
-            try:
-                process = subprocess.run(
-                    [sys.executable, str(script_path)],
-                    capture_output=True, text=True, check=True, cwd=BASE_DIR
-                )
-                st.text(f"Successfully ran {script_name}")
-            except subprocess.CalledProcessError as e:
-                st.error(f"Execution failed for {script_name}:")
-                st.code(e.stderr, language="bash")
-                return False
-            except FileNotFoundError:
-                st.error(f"Script not found: {script_name}.")
-                return False
-
-    st.success("✅ Pipeline completed successfully!")
-    st.cache_data.clear()
-    return True
 
 # --- UI Rendering ---
 def render_header():
@@ -124,25 +98,10 @@ def main():
     load_local_css("style.css")
     render_header()
 
-    # --- Robust Data Generation Check ---
-    required_files = [
-        OUTPUT_DIR / "combined_scores.csv",
-        OUTPUT_DIR / "qualitative_data_cleaned.csv",
-        OUTPUT_DIR / "quantitative_data_cleaned.csv"
-    ]
-
-    if not all(f.exists() for f in required_files):
-        st.warning("One or more data files are missing. Running the pipeline...")
-        if run_scoring_pipeline():
-            st.experimental_rerun()
-        else:
-            st.error("Data generation failed. The application cannot proceed.")
-            st.stop()
-
     df = load_and_process_data()
 
     if df is None:
-        st.error("Failed to load data. Please check the file paths and logs.")
+        st.error("Failed to load data. Please run the main scoring pipeline by executing `python main.py` in your terminal.")
         st.stop()
     
     # --- Sidebar ---
@@ -150,28 +109,34 @@ def main():
     unique_tiers = sorted(df["Tier"].unique())
     selected_tiers = st.sidebar.multiselect("Filter by Tier", unique_tiers, default=unique_tiers)
 
-    min_sharpe, max_sharpe = df['Historical Sharpe Ratio (3Y)'].min(), df['Historical Sharpe Ratio (3Y)'].max()
-    if pd.isna(min_sharpe) or pd.isna(max_sharpe):
-        min_sharpe, max_sharpe = 0.0, 1.0
-    
-    selected_sharpe = st.sidebar.slider(
-        "Filter by 3Y Sharpe Ratio", 
-        float(min_sharpe), float(max_sharpe), (float(min_sharpe), float(max_sharpe))
-    )
+    # --- Conditional Filters ---
+    sharpe_col = 'Historical Sharpe Ratio (3Y)'
+    tenure_col = 'Manager Tenure (Years)'
+    selected_sharpe = None
+    tenure_filter = False
 
-    tenure_filter = st.sidebar.checkbox("Filter by Manager Tenure > 10 years")
+    if sharpe_col in df.columns and df[sharpe_col].notna().any():
+        min_sharpe, max_sharpe = df[sharpe_col].min(), df[sharpe_col].max()
+        selected_sharpe = st.sidebar.slider(
+            "Filter by 3Y Sharpe Ratio", 
+            float(min_sharpe), float(max_sharpe), (float(min_sharpe), float(max_sharpe))
+        )
+
+    if tenure_col in df.columns and df[tenure_col].notna().any():
+        tenure_filter = st.sidebar.checkbox("Filter by Manager Tenure > 10 years")
 
     # --- Main Logic ---
     filtered_df = df[df["Tier"].isin(selected_tiers)]
     
-    sharpe_col = 'Historical Sharpe Ratio (3Y)'
-    filtered_df = filtered_df[
-        (filtered_df[sharpe_col].fillna(min_sharpe) >= selected_sharpe[0]) &
-        (filtered_df[sharpe_col].fillna(max_sharpe) <= selected_sharpe[1])
-    ]
+    if selected_sharpe:
+        min_s, max_s = selected_sharpe
+        filtered_df = filtered_df[
+            (filtered_df[sharpe_col].fillna(min_s) >= min_s) &
+            (filtered_df[sharpe_col].fillna(max_s) <= max_s)
+        ]
 
     if tenure_filter:
-        filtered_df = filtered_df[filtered_df['Manager Tenure (Years)'].fillna(0) > 10]
+        filtered_df = filtered_df[filtered_df[tenure_col].fillna(0) > 10]
 
     st.header("Fund Performance Overview")
 

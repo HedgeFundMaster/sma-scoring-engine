@@ -1,5 +1,21 @@
+
+# Environments
+.venv/
+.idea/
+
+# Data files
+# outputs/
+*.csv
+
+# Python cache
 __pycache__/
 *.pyc
-outputs/
-.env
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+
+# OS-specific
 .DS_Store
+Thumbs.db

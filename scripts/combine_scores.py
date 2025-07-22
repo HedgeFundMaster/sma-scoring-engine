@@ -9,7 +9,7 @@ QUAL_SCORES_PATH = Path(__file__).resolve().parent.parent / "outputs/qualitative
 QUANT_SCORES_PATH = Path(__file__).resolve().parent.parent / "outputs/quantitative_scores.csv"
 COMBINED_SCORES_PATH = Path(__file__).resolve().parent.parent / "outputs/combined_scores.csv"
 
-def get_combination__config():
+def get_combination_config():
     """Loads the combination configuration from the YAML file."""
     try:
         with open(CONFIG_PATH, "r") as f:
@@ -26,11 +26,26 @@ def calculate_combined_score(df, config):
     qual_weight = config.get("qualitative_weight", 0.4)
     quant_weight = config.get("quantitative_weight", 0.6)
     
-    # Fill missing scores with 0 before calculating the combined score
     df["Qualitative Score"].fillna(0, inplace=True)
     df["Quantitative Score"].fillna(0, inplace=True)
     
     df["Combined Score"] = (df["Qualitative Score"] * qual_weight) + (df["Quantitative Score"] * quant_weight)
+    return df
+
+def assign_tiers_and_explanation(df):
+    """Assigns tiers and provides explanations based on the combined score."""
+    tier1_cutoff = df["Combined Score"].quantile(0.75)
+    tier2_cutoff = df["Combined Score"].quantile(0.50)
+    
+    def get_tier_explanation(score):
+        if score >= tier1_cutoff:
+            return "Tier 1", "This fund ranks in the top 25% of its peers, demonstrating exceptional overall performance."
+        elif score >= tier2_cutoff:
+            return "Tier 2", "This fund ranks in the top 50% of its peers, showing strong overall results."
+        else:
+            return "Tier 3", "This fund is in the bottom 50% of its peers, indicating opportunities for improvement."
+
+    df[["Tier", "Justification"]] = df["Combined Score"].apply(lambda score: pd.Series(get_tier_explanation(score)))
     return df
 
 def main():
@@ -40,28 +55,25 @@ def main():
         
         config = get_combination_config()
         
-        # Read the score files
-        try:
-            df_qual = pd.read_csv(QUAL_SCORES_PATH)
-            df_quant = pd.read_csv(QUANT_SCORES_PATH)
-        except FileNotFoundError as e:
-            print(f"❌ Error: Score file not found: {e.filename}", file=sys.stderr)
-            print("Please run the scoring engines first.", file=sys.stderr)
+        if not QUAL_SCORES_PATH.exists() or not QUANT_SCORES_PATH.exists():
+            print(f"❌ Error: Score files not found. Please run the scoring engines first.", file=sys.stderr)
             sys.exit(1)
+
+        df_qual = pd.read_csv(QUAL_SCORES_PATH)
+        df_quant = pd.read_csv(QUANT_SCORES_PATH)
         
-        # Use an outer merge to keep all funds from both files
         df_merged = pd.merge(
             df_qual[['Fund Name', 'Qualitative Score']],
             df_quant[['Fund Name', 'Quantitative Score']],
             on="Fund Name",
-            how="outer"  # Keep all funds
+            how="outer"
         )
         
         df_combined = calculate_combined_score(df_merged, config)
+        df_final = assign_tiers_and_explanation(df_combined)
         
-        # Save the combined scores
         COMBINED_SCORES_PATH.parent.mkdir(exist_ok=True)
-        df_combined.to_csv(COMBINED_SCORES_PATH, index=False)
+        df_final.to_csv(COMBINED_SCORES_PATH, index=False)
         
         print(f"✅ Combined scores saved to {COMBINED_SCORES_PATH}")
 

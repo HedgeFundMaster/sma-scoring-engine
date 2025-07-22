@@ -45,17 +45,17 @@ def clean_quantitative_data(input_path, output_path):
     - Saves the cleaned data.
     """
     try:
-        # Read the CSV, skipping blank lines. The first row is read as the header.
+        if not input_path.exists():
+            print(f"❌ Error: Raw quantitative data file not found at {input_path}", file=sys.stderr)
+            return None
+
         df = pd.read_csv(input_path, skip_blank_lines=True)
         
-        # Clean column names
         df = clean_column_names(df)
         
-        # Rename 'Name' to 'Fund Name' for consistency
         if 'Name' in df.columns:
             df.rename(columns={'Name': 'Fund Name'}, inplace=True)
             
-        # Ensure 'Fund Name' is the first column if it exists
         if 'Fund Name' in df.columns:
             cols = ['Fund Name'] + [col for col in df.columns if col != 'Fund Name']
             df = df[cols]
@@ -65,9 +65,6 @@ def clean_quantitative_data(input_path, output_path):
         print(f"✅ Quantitative data cleaned and saved to {output_path}")
         return df
 
-    except FileNotFoundError:
-        print(f"❌ Error: Raw quantitative data file not found at {input_path}", file=sys.stderr)
-        return None
     except Exception as e:
         print(f"❌ An unexpected error occurred while cleaning quantitative data: {e}", file=sys.stderr)
         return None
@@ -80,12 +77,14 @@ def clean_qualitative_data(input_path, output_path):
     - Saves the cleaned data.
     """
     try:
+        if not input_path.exists():
+            print(f"❌ Error: Raw qualitative data file not found at {input_path}", file=sys.stderr)
+            return None
+
         df = pd.read_csv(input_path)
         
-        # Clean column names
         df = clean_column_names(df)
         
-        # Parse Manager Tenure
         if 'Manager Tenure (Years)' in df.columns:
             df['Manager Tenure (Years)'] = parse_manager_tenure(df['Manager Tenure (Years)'])
         
@@ -94,9 +93,6 @@ def clean_qualitative_data(input_path, output_path):
         print(f"✅ Qualitative data cleaned and saved to {output_path}")
         return df
 
-    except FileNotFoundError:
-        print(f"❌ Error: Raw qualitative data file not found at {input_path}", file=sys.stderr)
-        return None
     except Exception as e:
         print(f"❌ An unexpected error occurred while cleaning qualitative data: {e}", file=sys.stderr)
         return None
@@ -106,7 +102,6 @@ def main():
     print("--- Starting Data Preprocessing ---")
     OUTPUT_DIR.mkdir(exist_ok=True)
     
-    # Clean both quantitative and qualitative data
     clean_quantitative_data(QUANT_RAW_PATH, CLEANED_QUANT_PATH)
     clean_qualitative_data(QUAL_RAW_PATH, CLEANED_QUAL_PATH)
     

@@ -4,3 +4,4 @@ openpyxl
 ace_tools
 python-dotenv
 streamlit
+PyYAML

@@ -29,14 +29,12 @@ def calculate_final_score(df, config):
         print("❌ Error: 'weights' or 'score_mapping' is missing in the qualitative config.", file=sys.stderr)
         sys.exit(1)
 
-    # Calculate the weighted average score
     total_score = pd.Series(0.0, index=df.index)
     total_weight = 0.0
 
     for col, weight in weights.items():
         if col in df.columns:
             score_col = f"{col}_Score"
-            # Map string values to scores, coercing errors to NaN, then filling with 0
             df[score_col] = df[col].map(score_mapping).fillna(0)
             total_score += df[score_col] * weight
             total_weight += weight
@@ -55,21 +53,19 @@ def main():
         
         config = get_qualitative_config()
         
-        try:
-            df = pd.read_csv(DATA_PATH)
-        except FileNotFoundError:
+        if not DATA_PATH.exists():
             print(f"❌ Error: Cleaned qualitative data not found at {DATA_PATH}", file=sys.stderr)
             print("Please run the data_preprocessor.py script first.", file=sys.stderr)
             sys.exit(1)
+            
+        df = pd.read_csv(DATA_PATH)
         
         df_scored = calculate_final_score(df, config)
         
-        # Select relevant columns for output
         output_cols = ['Fund Name', 'Qualitative Score', 'Manager Tenure (Years)']
         score_cols = [f"{cat}_Score" for cat in config.get("weights", {}).keys() if f"{cat}_Score" in df_scored.columns]
         output_cols.extend(score_cols)
         
-        # Save the results
         OUTPUT_PATH.parent.mkdir(exist_ok=True)
         df_scored[output_cols].to_csv(OUTPUT_PATH, index=False)
         
